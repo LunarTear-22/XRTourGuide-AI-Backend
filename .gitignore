@@ -1,0 +1,33 @@
+# --- Virtual Environments (TUTTI) ---
+venv/
+env/
+.env
+*_venv/
+experiments/TTSTest/CoquiTTS/venv_coqui/
+
+# --- File Python Inutili ---
+__pycache__/
+*.pyc
+
+# --- File Audio e Output ---
+*.wav
+*.mp3
+generated_audio/
+temp_audio/
+
+# --- Modelli AI Pesanti (>100MB) ---
+*.onnx
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.gguf
+*.dll
+*.exe
+*.so
+
+# --- Cartelle di Cache e Build ---
+.vscode/
+bin/
+dist/
+build/

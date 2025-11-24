@@ -1,0 +1,22 @@
+﻿Modello,Score (0-100),Note Errori,Velocità (Tok/s),Tempo Totale (s),Output Preview
+qwen2.5:7b,80,"LOW_PAUSES, TOO_SHORT",1.58,224.55,"{
+  ""titolo"": ""Il Gigante Romano"",
+  ""descrizione_audio"": ""Immaginatevi un gigantesco teatro, con gradinate che sembrano salire verso il cielo... Il Colosseo! Costruito nel primo secolo d.C., era il cuore del divertimento e della spettacolarità romana. Qui si svolgevano combattimenti tra gladiatori, battaglie animali e perfino esecuzioni pubbliche! (...) Ogni spettatore trovava la propria postazione, cullato dall'atmosfera di emozione che riempiva queste mura. Ecco perché il Colosseo è ancora oggi un simbolo di potenza e grandezza romana!"",
+  ""fact_check"": [""primo secolo d.C."", ""giocose"", ""gladiatori"", ""battaglie animali"", ""esecuzioni pubbliche""]
+}"
+llama3.1:8b,80,"FLAT_TONE (No '!'), TOO_SHORT",1.10,356.77,"{
+  ""titolo"": ""La Maestà del Colosseo"",
+  ""descrizione_audio"": ""Ecco il Colosseo, l'architettura più emblematica di Roma... (pausa) ...un anfiteatro romano costruito nel I secolo d.C. per ospitare i giochi più spettacolari dell'impero. (sospensione) Immaginatevi la folla emozionata, gli schiavi pronti a combattere contro i gladiatori, il pubblico che urla e applaude... (pausa) ...il Colosseo era il luogo dove l'umanità si riuniva per assistere ai giochi più crudeli e spettacolari della Roma antica. (sospensione) Con le sue 50.000 posti a sedere, era un teatro di sangue e di gloria, dove la vita umana era messa in gioco per il divertimento del pubblico."",
+  ""fact_check"": [""I secolo d.C."", ""Roma antica"", ""Anfiteatro romano""]
+}"
+mistral-nemo,60,"NO_PAUSES, FLAT_TONE (No '!'), TOO_SHORT",0.06,2445.17,"{
+  ""titolo"": ""Il Colosseo: Un tempio alla grandezza dell'antica Roma"",
+  ""descrizione_audio"": ""Immagina di camminare attraverso le antiche pietre del Colosseo, l'anfiteatro romano più famoso al mondo. Costruito nel primo secolo d.C., questo monumento maestoso era il luogo dove i gladiatori si sfidavano per la gloria e il pubblico assisteva rapito ai giochi più spettacolari dell'antichità."",
+  ""fact_check"": [""Colosseo"", ""anfiteatro romano"", ""primo secolo d.C."", ""giochi""]
+}"
+phi3.5,0,CRITICAL: No JSON,4.26,118.62,"{
+  ""titolo"": ""La gloria dell'Anfiteatro di Roma"",
+  ""descrizione_audio"": ""Immergiti nella storia con il Colosseo, un capolavoro del primo secolo a.C., dove le corde si tesauravano per i giochi epici della Roma antica! Tra tremila e seicentocinquanta spettatori seduti su alte gradinate sperimentava l extrato di adrenalina ogni sabato, dalle battute cruente dei gladiatori allo stupore degli animali selvaggi. Ora che cammini attraverso le sue porte monumentali... senti il passare del tempo? Sentiti la folla scricchiolare mentre aspettavano l'azione imminente! Ecco, questo anfiteatro non è solo pietra e cemento; racconta una storia di orgoglio civico ed esibizione mortale. Ascoltate il silenzio del passato... un momento per riflettere sulla grandezza dell'umanità.""
+  ""fact_check"": [""Il Colosseo è stato costruito nel I secolo d.C."", ""L'anfiteatro era usato per i giochi"", ""Poteva contenere tra tremila e seicentocinquanta spettatori""]
+}
+"
