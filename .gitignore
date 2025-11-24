@@ -5,7 +5,7 @@ env/
 *_venv/
 experiments/TTSTest/CoquiTTS/venv_coqui/
 
-# --- File Python Inutili ---
+# --- File Python ---
 __pycache__/
 *.pyc
 
@@ -15,7 +15,7 @@ __pycache__/
 generated_audio/
 temp_audio/
 
-# --- Modelli AI Pesanti (>100MB) ---
+# --- Modelli AI Pesanti---
 *.onnx
 *.bin
 *.pt
