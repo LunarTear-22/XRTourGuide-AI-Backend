@@ -1,0 +1,17 @@
+# --- 1. PyTorch con supporto GPU (Versioni esatte dal tuo ambiente) ---
+# Il link serve per trovare le versioni +cu121
+--find-links https://download.pytorch.org/whl/torch_stable.html
+torch==2.5.1+cu121
+torchaudio==2.5.1+cu121
+torchvision==0.20.1+cu121
+
+# --- 2. Fix di Compatibilità (CRITICI) ---
+numpy==1.22.0
+transformers==4.33.0
+
+# --- 3. Il Motore TTS (Coqui) ---
+git+https://github.com/coqui-ai/TTS.git
+
+# --- 4. Utilità Audio ---
+soundfile==0.13.1
+scipy==1.11.4

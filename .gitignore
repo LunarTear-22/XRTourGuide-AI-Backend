@@ -15,6 +15,10 @@ __pycache__/
 generated_audio/
 temp_audio/
 
+# --- ECCEZIONI (Whitelist) ---
+!ref_voice.mp3
+!ref_voice.wav
+
 # --- Modelli AI Pesanti---
 *.onnx
 *.bin
@@ -31,3 +35,4 @@ temp_audio/
 bin/
 dist/
 build/
+

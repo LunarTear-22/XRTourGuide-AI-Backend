@@ -9,7 +9,7 @@ from TTS.tts.models.xtts import Xtts
 # --- CONFIGURAZIONE ---
 TEXT = "Immaginatevi un gigantesco teatro, con gradinate che sembrano salire verso il cielo. " \
     "Il Colosseo, costruito nel primo secolo d.C., era il cuore del divertimento e della spettacolarità romana"
-REF_AUDIO = "ref_voice.mp3" 
+REF_AUDIO = "ref_voice.wav" 
 
 # --- PARAMETRI DI CORREZIONE ---
 GEN_SPEED = 1.1       
