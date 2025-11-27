@@ -21,3 +21,12 @@ class DescriptionRequest(BaseModel):
 class DescriptionResponse(BaseModel):
     full_text_optimized: str  # Testo intero da mostrare a schermo (UI)
     tts_chunks: List[str]     # Lista di frasi <180char per il motore audio
+
+    # --- AUDIO ON DEMAND ---
+class AudioGenerationRequest(BaseModel):
+    text: str          # La singola frase da leggere
+    language: str = "it"
+
+class AudioGenerationResponse(BaseModel):
+    audio_url: str     # L'URL di MinIO da suonare
+    cached: bool       # Debug: ci dice se era già pronto o no

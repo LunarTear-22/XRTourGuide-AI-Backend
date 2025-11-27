@@ -2,7 +2,6 @@ import re
 
 class TextNormalizer:
     def __init__(self):
-        # Uniamo più dizionari per ordine mentale
         self.replacements = {}
         
         # 1. TECNOLOGIA & INGLESE
@@ -17,11 +16,11 @@ class TextNormalizer:
             "offline": "off lain",
             "touch": "tac",
             "location": "lochescion",
+            "xr": "ecs ar",
         })
 
         # 2. LATINO & MEDIEVALE (Architettura e Arte)
         self.replacements.update({
-            # Edifici e Strutture
             "domus": "dòmus",           
             "insula": "ìnsula",
             "insulae": "ìnsule",        
@@ -38,8 +37,6 @@ class TextNormalizer:
             "tepidarium": "tepidàrium",
             "vomitorium": "vomitòrium",
             "cavea": "càvea",
-            
-            # Arte e Iscrizioni
             "opus": "òpus",             
             "reticulatum": "reticulàtum",
             "incertum": "incèrtum",
@@ -49,7 +46,7 @@ class TextNormalizer:
             "lapidarium": "lapidàrium",
         })
 
-        # 3. TERMINI ECCLESIASTICI / SACRI (Molto comuni nei musei)
+        # 3. TERMINI ECCLESIASTICI
         self.replacements.update({
             "sanctus": "sànctus",
             "pater": "pàter",
@@ -71,7 +68,7 @@ class TextNormalizer:
             "nartece": "nàrtece",
         })
 
-       # 4. ESPRESSIONI STORICHE COMUNI
+        # 4. ESPRESSIONI STORICHE & DATAZIONE
         self.replacements.update({
             "anno domini": "ànno dòmini",
             "ante christum": "ànte crìstum",
@@ -84,101 +81,69 @@ class TextNormalizer:
             "ibidem": "ibìdem",
             "ex voto": "ecs vòto",
             
-            # VARIANTI DATE (Con e senza punto finale)
+            # VARIANTI DATE
             "d.c.": "dopo cristo",
-            "d.c": "dopo cristo",    # Caso in cui manchi l'ultimo punto
+            "d.c": "dopo cristo",
             "a.c.": "avanti cristo",
             "a.c": "avanti cristo",
-            "dc": "dopo cristo",     # Caso senza punti
-            "ac": "avanti cristo"
-        })
-
-        #5. BRAND & PROGETTO
-        self.replacements.update({
-            "xrtourguide": "ekks ar tur gaid",
-            "futural": "fiu ciur al",
-            "xr": "ekks ar",
+            "dc": "dopo cristo",
+            "ac": "avanti cristo",
+            "sec.": "secolo",
         })
 
     def _apply_replacements(self, text: str) -> str:
+        """Applica le sostituzioni dal dizionario usando Regex intelligenti"""
         for original, phonetic in self.replacements.items():
-            pattern = r'(?i)'
+            pattern = r'(?i)' # Case insensitive
             
-            # 1. Se la chiave inizia con una lettera/numero, mettiamo il blocco all'inizio
+            # Se inizia con alfanumerico, usa boundary \b per non sostituire parti di parola
             if original[0].isalnum():
                 pattern += r'\b'
             
             pattern += re.escape(original)
-        
-            # Mettiamo il blocco alla fine (\b) SOLO se la chiave finisce con una lettera.
-            # Se finisce con un punto (come "d.c."), NON lo mettiamo, così lo trova anche se c'è uno spazio dopo.
+            
+            # Se finisce con alfanumerico, usa boundary \b.
+            # Se finisce con punto (es "d.c."), NON usiamo \b perché il punto è già un delimitatore
             if original[-1].isalnum():
                 pattern += r'\b'
             
             text = re.sub(pattern, phonetic, text)
         return text
-    
-    def _fix_phonetic_glitches(self, text: str) -> str:
-        """
-        Invece di usare un dizionario, usiamo regole logiche per correggere
-        intere categorie di suoni problematici per Piper.
-        """
-        
-        # REGOLA: Gruppo "TR" Intervocalico
-        # Cerca: una vocale + 'tr' + una vocale (es. piE-TRa, teA-TRo)
-        # Sostituisce con: vocale + 't-tr' + vocale (Raddoppio tattico) o vocale + '-tr'
-        
-        # Spiegazione Regex:
-        # (?i)         -> Ignora maiuscole/minuscole
-        # ([a-zàèéìòù]) -> GRUPPO 1: Una lettera qualsiasi (o vocale accentata) prima
-        # tr           -> Il suono problematico
-        # ([a-zàèéìòù]) -> GRUPPO 2: Una lettera qualsiasi dopo
-        
-        # Strategia: Inseriamo un trattino per forzare la sillabazione "Pie-tra"
-        # Nota: \1 richiama la lettera prima, \2 la lettera dopo.
-        text = re.sub(r'(?i)([aeiouàèéìòù])tr([aeiouàèéìòù])', r'\1-tr\2', text)
-        
-        # Esempio risultato automatico:
-        # "Pietra" -> "Pie-tra"
-        # "Teatro" -> "Tea-tro"
-        # "Vetro"  -> "Ve-tro"
-        
-        return text
 
     def clean_text(self, text: str) -> str:
-        # 0. RIMOZIONE MARKDOWN E EMOJI
-        # Rimuove asterischi, cancelletti, parentesi quadre (residui di prompt)
-        text = re.sub(r'[\*\#\[\]\_\-]', '', text)
+        """Pipeline principale di pulizia"""
         
-        # Rimuove qualsiasi carattere che NON sia:
-        # - Lettere (a-z, A-Z, lettere accentate)
-        # - Numeri
-        # - Punteggiatura base (.,!?:;)
-        # - Spazi
-        # Questo elimina le Emoji.
-        text = re.sub(r'[^\w\s\.,!\?;:àèéìòùÀÈÉÌÒÙ\'"\-]', '', text)
+        # 1. RIMOZIONE MARKDOWN E EMOJI
+        text = re.sub(r'[\*\#\[\]\_\-]', '', text) # Via markdown (*, #, _, -)
+        
+        # Mantiene solo lettere, numeri e punteggiatura base. Via Emoji.
+        text = re.sub(r'[^\w\s\.,!\?;:àèéìòùÀÈÉÌÒÙ\'"]', '', text)
 
-        # 1. Normalizzazione Dizionario
+        # 2. NORMALIZZAZIONE DIZIONARIO (Latino, date, tech)
         text = self._apply_replacements(text)
 
-        # NUOVO PASSAGGIO AUTOMATICO
-        text = self._fix_phonetic_glitches(text)
-        
-        # 2. Pulizia Extra
+        # 3. PULIZIA SPAZI
         text = re.sub(r'\s+', ' ', text).strip()
         
-        return text
+        # 4. GESTIONE PUNTEGGIATURA FINALE (Specifico per XTTS)
+        # Se finisce con un punto, lo togliamo e mettiamo un a capo
+        # Questo evita che l'AI dica la parola "punto" alla fine.
+        if text.endswith((".", "!", "?")):
+            text = text[:-1]
+        
+        return text + "\n"
 
+# --- ESEMPIO DI UTILIZZO ---
 if __name__ == "__main__":
     norm = TextNormalizer()
     test_phrases = [
-        "Visitiamo la Domus del Chirurgo e il suo Atrium.",
-        "Nell'Anno Domini 1200 fu costruita la Basilica.",
-        "Il coro canta il Magnificat nell'abside.",
-        "Iscrizione: Hic iacet un soldato del Castrum."
+        "Benvenuti nel 2024 d.C. alla Domus.",
+        "Il Wi-Fi si trova nella hall.",
+        "Opus reticulatum del I sec. a.C.",
+        "XRTourGuide è online!"
     ]
     
-    print("--- TEST NORMALIZZAZIONE STORICA ---")
+    print("--- TEST NORMALIZZAZIONE ---")
     for t in test_phrases:
         print(f"IN : {t}")
-        print(f"OUT: {norm.clean_text(t)}\n")
+        print(f"OUT: '{norm.clean_text(t)}'") # Le virgolette mostrano il \n finale

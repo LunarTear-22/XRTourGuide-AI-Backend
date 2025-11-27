@@ -1,77 +1,39 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from contextlib import asynccontextmanager
 import os
 import hashlib
-from pathlib import Path
 import uvicorn
-from app.tts.piper_engine import PiperEngine
-from app.schemas import TitleRequest, TitleResponse, DescriptionRequest, DescriptionResponse
-from app.llm.services.optimize_title import generate_optimized_title
-from app.llm.services.optimize_description import generate_optimized_description
 
-# 1. Configurazione Iniziale
-app = FastAPI(
-    title="XRTourGuide AI API",
-    description="Backend TTS per il progetto XRTourGuide",
-    version="1.1.0"
+# Schemas aggiornati
+from app.schemas import (
+    TitleRequest, TitleResponse, 
+    DescriptionRequest, DescriptionResponse,
+    AudioGenerationRequest, AudioGenerationResponse
 )
 
-# --- CONFIGURAZIONE CACHE ---
-TEMP_AUDIO_DIR = "generated_audio"
-MAX_CACHE_FILES = 50  # Numero massimo di file mp3 da mantenere. Modifica a piacere!
-FILES_TO_DELETE= 10
+# Services
+from app.llm.services.optimize_title import generate_optimized_title
+from app.llm.services.optimize_description import generate_optimized_description
+from app.tts.coqui_engine import XttsEngine 
+from app.storage import check_file_exists, get_file_url, upload_file
 
-if not os.path.exists(TEMP_AUDIO_DIR):
-    os.makedirs(TEMP_AUDIO_DIR)
+# --- VARIABILI GLOBALI ---
+tts_engine = None
 
-# 2. Inizializzazione Motore TTS
-try:
-    tts_engine = PiperEngine()
-    print("Motore TTS caricato correttamente nel backend.")
-except Exception as e:
-    print(f"ERRORE CRITICO ALL'AVVIO: {e}")
-    tts_engine = None
+# --- LIFESPAN ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global tts_engine
+    print("Avvio Backend...")
 
-# 3. Modello Dati
-class TourRequest(BaseModel):
-    text: str
-    language: str = "it"
+    # Carichiamo XTTS solo se abbiamo intenzione di servire audio
+    tts_engine = XttsEngine() 
+    print("XTTS Ready.")
+    
+    yield
+    print("Shutdown.")
 
-# --- FUNZIONE DI PULIZIA (LRU) ---
-def pulisci_cache_se_piena():
-    """
-    Controlla se abbiamo troppi file. Se sì, cancella i più vecchi (quelli non usati da tempo).
-    """
-    try:
-        # Lista di tutti gli mp3 con percorso completo
-        files = [os.path.join(TEMP_AUDIO_DIR, f) for f in os.listdir(TEMP_AUDIO_DIR) if f.endswith('.mp3')]
-        
-        num_files=len(files)
-
-        # Se siamo sotto il limite, tutto ok
-        if len(files) < MAX_CACHE_FILES:
-            return
-
-        # Ordina i file in base all'ultima modifica (dal più vecchio al più nuovo)
-        files.sort(key=os.path.getmtime)
-
-        # 3. Calcola quanti file audio cancellare
-        da_cancellare = min(FILES_TO_DELETE, num_files)
-
-        count_rimossi = 0
-        for i in range(da_cancellare):
-            file_vecchio = files[i]
-            try:
-                os.remove(file_vecchio)
-                count_rimossi += 1
-            except OSError as e:
-                print(f"Impossibile cancellare {file_vecchio}: {e}")
-        
-        print(f"Pulizia completata: rimossi {count_rimossi} file vecchi. Spazio liberato.")
-            
-    except Exception as e:
-        print(f"Errore critico durante pulizia cache: {e}")
+app = FastAPI(title="XRTourGuide API", lifespan=lifespan)
 
 # --- ENDPOINTS ---
 
@@ -81,57 +43,59 @@ def root():
     return {
         "status": "online", 
         "service": "XRTourGuide TTS", 
-        "cache_limit": MAX_CACHE_FILES
     }
 
-@app.post("/api/generate-audio")
-async def generate_audio(request: TourRequest):
+@app.post("/generate-audio", response_model=AudioGenerationResponse)
+async def generate_audio_ondemand(request: AudioGenerationRequest):
     """
-    Riceve un testo JSON -> Restituisce il file audio .mp3 (usando la cache se possibile)
+    Chiamato dall'App del turista quando serve l'audio.
+    Input: Una frase di testo.
+    Output: URL MP3 (Generato al volo o recuperato da Cache MinIO).
     """
-    if tts_engine is None:
-        raise HTTPException(status_code=500, detail="Motore TTS non inizializzato")
-
-    if not request.text.strip():
-        raise HTTPException(status_code=400, detail="Il testo non può essere vuoto")
-
-    try:
-        # 1. CALCOLO HASH (Impronta digitale del testo)
-        hash_object = hashlib.md5(request.text.encode())
-        filename = f"{hash_object.hexdigest()}.mp3"
-        file_path = os.path.join(TEMP_AUDIO_DIR, filename)
-
-        # 2. CONTROLLO CACHE (Hit)
-        if os.path.exists(file_path):
-            print(f"CACHE HIT: Audio già pronto per '{filename}'")
-            
-            # TRUCCO LRU: "Tocchiamo" il file per aggiornare la data di modifica.
-            # Così il sistema sa che è stato usato di recente e non lo cancellerà subito.
-            Path(file_path).touch()
-            
-            return FileResponse(file_path, media_type="audio/mpeg", filename="tour_guide.mp3")
-
-        # 3. CACHE MISS -> Generazione Nuova
-        print(f"NUOVA GENERAZIONE: Creazione audio per '{filename}'")
-        
-        # Facciamo spazio se serve
-        pulisci_cache_se_piena()
-
-        # Chiamiamo Piper (che farà anche la conversione MP3)
-        successo = tts_engine.genera_audio(request.text, file_path)
-
-        if not successo:
-            raise HTTPException(status_code=500, detail="Errore interno generazione audio")
-
-        return FileResponse(
-            file_path, 
-            media_type="audio/mpeg", 
-            filename="tour_guide.mp3"
-        )
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Errore Server: {str(e)}")
+    global tts_engine
     
+    if tts_engine is None:
+        raise HTTPException(status_code=503, detail="Servizio TTS non attivo")
+
+    # 1. Calcolo Hash (Impronta digitale della frase)
+    text_hash = hashlib.md5(request.text.encode('utf-8')).hexdigest()
+    
+    # 2. Definizione Percorso MinIO (es:a1b2c3d4.mp3)
+
+    object_name = f"{text_hash}.mp3"
+    
+    # 3. STRATEGIA CACHE: Controllo se esiste già
+    if check_file_exists(object_name):
+        print(f"CACHE HIT: {object_name}")
+        return AudioGenerationResponse(
+            audio_url=get_file_url(object_name),
+            cached=True
+        )
+    
+    # 4. GENERAZIONE (Se non esiste)
+    print(f"NEW TTS: Generazione per '{request.text:20}'...")
+    
+    local_temp = f"temp_{text_hash}.mp3"
+    
+    # XTTS Engine (Genera WAV -> Converte MP3)
+    success = tts_engine.generate_audio(request.text, local_temp)
+    
+    if not success or not os.path.exists(local_temp):
+        raise HTTPException(status_code=500, detail="Fallimento generazione audio")
+    
+    # Upload su MinIO
+    upload_file(local_temp, object_name)
+    
+    # Pulizia locale
+    os.remove(local_temp)
+    
+    # Ritorna URL
+    return AudioGenerationResponse(
+        audio_url=get_file_url(object_name),
+        cached=False
+    )
+
+
 @app.post("/optimize/title", response_model=TitleResponse)
 async def optimize_title_endpoint(request: TitleRequest):
     """
@@ -160,3 +124,6 @@ async def optimize_description_endpoint(request: DescriptionRequest):
     result = generate_optimized_description(request.original_text)
     
     return result
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
