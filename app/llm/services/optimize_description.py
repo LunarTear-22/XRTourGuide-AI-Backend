@@ -1,0 +1,92 @@
+import ollama
+import json
+from app.schemas import DescriptionResponse
+
+MODEL_NAME = "qwen2.5:7b" 
+
+def generate_optimized_description(original_text: str) -> DescriptionResponse:
+    
+    # --- PERSONA & STILE --- Pattern Persona ed Audience
+    system_role = (
+        "Sei un Divulgatore Culturale esperto e carismatico (stile Alberto Angela). "
+        "Scrivi per un'applicazione di Realtà Aumentata che guida i turisti in Italia. "
+        "Il tuo italiano è fluido, elegante ed evocativo. "
+        "Il tuo obiettivo è emozionare l'utente, facendogli notare la bellezza di ciò che ha davanti."
+    )
+
+    # --- Context Pattern ---
+    guidelines = """
+    LINEE GUIDA UNIVERSALI:
+    1. NO ANACRONISMI: Fai estrema attenzione ai materiali e alle tecnologie. Non citare materiali moderni se l'opera è antica o rinascimentale.
+    2. FOCUS SUL VISIBILE: Descrivi l'impatto visivo del monumento (le dimensioni, i materiali, i giochi di luce, i colori). Invita l'utente a guardare i dettagli.
+    3. GRAMMATICA IMPECCABILE: Evita frasi passive, ripetizioni o traduzioni letterali. Usa un lessico ricco ma comprensibile.
+    4. ESPANSIONE INTELLIGENTE: Usa il 'Testo di Base' come fonte di verità. Puoi arricchirlo con dettagli atmosferici o contesto storico generale, ma NON inventare date o nomi specifici se non sei sicuro al 100%.
+    """
+    # ---  FACT CHECKING PATTERN ---
+    fact_checking_protocol = """
+    PROTOCOLLO DI FACT-CHECKING E VERITÀ STORICA (PRIORITÀ ASSOLUTA):
+    1. Poiché devi espandere il testo, userai le tue conoscenze interne. FAI ATTENZIONE.
+    2. VERIFICA ogni data, nome di imperatore o evento storico che aggiungi. Devono essere REALI.
+    3. NON INVENTARE MAI DETTAGLI. Se non sei sicurissimo di un anno specifico, usa termini più generici (es. "all'inizio del primo secolo") piuttosto che rischiare un numero sbagliato.
+    4. Se il testo originale contiene un errore palese, correggilo silenziosamente basandoti sulla tua conoscenza enciclopedica.
+    """
+
+    # --- Template Pattern ---
+    constraints = """
+    VINCOLI DI LUNGHEZZA E FORMATO (OBBLIGATORI):
+    1. LUNGHEZZA: Devi generare un testo di ALMENO 130-150 parole. Se il testo originale è breve, USA LE TUE CONOSCENZE per arricchirlo con dettagli storici, curiosità e descrizioni visive pertinenti.
+    2. CHUNKING: Dividi il testo in una lista di frasi brevi (massimo 180 caratteri l'una) per la sintesi vocale.
+    3. AUDIO CLEANING: 
+       - Scrivi i numeri in lettere se necessario per la fluidità.
+       - Niente parentesi, caratteri speciali o elenchi puntati.
+    4. Ogni frase deve avere senso compiuto.
+    """
+
+    # --- 4. TEMPLATE JSON ---
+    json_format = """
+    OUTPUT JSON RICHIESTO (Non aggiungere altro testo):
+    {
+        "full_text_optimized": "Il testo completo (lungo almeno 130 parole), coinvolgente e discorsivo.",
+        "tts_chunks": [
+            "Frase 1 (breve e pulita).",
+            "Frase 2 (breve e pulita).",
+            "..."
+        ]
+    }
+    """
+
+    # --- Costruzione Prompt ---
+    prompt = f"""
+    {system_role}
+    
+    TESTO ORIGINALE: "{original_text}"
+    
+    Compito: Riscrivi il testo rendendolo accattivante e suddividilo per la sintesi vocale.
+    {guidelines}
+    {fact_checking_protocol}
+    {constraints}
+    {json_format}
+    
+    Rispondi SOLO col JSON.
+    """
+
+    try:
+        response = ollama.chat(model=MODEL_NAME, messages=[{'role': 'user', 'content': prompt}])
+        raw_content = response['message']['content']
+        
+        # Pulizia JSON da possibili refusi
+        clean_json = raw_content.replace("```json", "").replace("```", "").strip()
+        data = json.loads(clean_json)
+        
+        return DescriptionResponse(
+            full_text_optimized=data["full_text_optimized"],
+            tts_chunks=data["tts_chunks"]
+        )
+
+    except Exception as e:
+        print(f"Errore LLM Descrizione: {e}")
+        # Fallback sicuro: restituisce il testo originale diviso grossolanamente
+        return DescriptionResponse(
+            full_text_optimized=original_text,
+            tts_chunks=[original_text] #evita crash
+        )

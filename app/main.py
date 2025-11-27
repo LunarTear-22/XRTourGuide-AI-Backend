@@ -4,7 +4,11 @@ from pydantic import BaseModel
 import os
 import hashlib
 from pathlib import Path
+import uvicorn
 from app.tts.piper_engine import PiperEngine
+from app.schemas import TitleRequest, TitleResponse, DescriptionRequest, DescriptionResponse
+from app.llm.services.optimize_title import generate_optimized_title
+from app.llm.services.optimize_description import generate_optimized_description
 
 # 1. Configurazione Iniziale
 app = FastAPI(
@@ -127,3 +131,32 @@ async def generate_audio(request: TourRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore Server: {str(e)}")
+    
+@app.post("/optimize/title", response_model=TitleResponse)
+async def optimize_title_endpoint(request: TitleRequest):
+    """
+        Riceve un titolo scritto dall'autore del tour e ne restituisce 3 varianti ottimizzate secondo i patter scelti
+    """
+
+    if not request.original_title:
+        raise HTTPException(status_code=400, detail="Il titolo non può essere vuoto")
+        
+    # Chiamata al servizio LLM
+    result = generate_optimized_title(request.original_title)
+    
+    return result
+
+@app.post("/optimize/description", response_model=DescriptionResponse)
+async def optimize_description_endpoint(request: DescriptionRequest):
+    """
+    Riceve una descrizione grezza e restituisce:
+    1. Testo bello per la UI.
+    2. Chunk audio pronti per XTTS.
+    """
+    if not request.original_text:
+        raise HTTPException(status_code=400, detail="Il testo non può essere vuoto")
+    
+    # Chiamata al servizio
+    result = generate_optimized_description(request.original_text)
+    
+    return result
